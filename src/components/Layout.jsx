@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { canManageUsersByRole } from "../lib/permissions";
@@ -22,6 +22,7 @@ const navClass = ({ isActive }) =>
 
 function Layout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { userProfile } = useCurrentUser();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
@@ -33,6 +34,10 @@ function Layout() {
   const handleNavigate = () => {
     setMenuAbierto(false);
   };
+
+  useEffect(() => {
+    setMenuAbierto(false);
+  }, [location.pathname]);
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -64,6 +69,17 @@ function Layout() {
 
       {/* Sidebar */}
       <aside className={`fixed md:static z-50 top-0 left-0 h-full md:h-auto w-64 bg-gradient-to-b from-green-700 to-green-800 text-white p-5 border-r border-green-900/30 transform transition-transform duration-200 ${menuAbierto ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
+        <div className="md:hidden flex justify-end mb-2">
+          <button
+            type="button"
+            onClick={() => setMenuAbierto(false)}
+            className="text-white bg-green-800/80 px-2 py-1 rounded"
+            aria-label="Cerrar menú"
+          >
+            ✕
+          </button>
+        </div>
+
         <div className="mb-8 rounded-xl bg-green-600/40 p-3 border border-green-500/40">
           <h1 className="text-xl font-bold flex items-center gap-3">
             <span className="text-2xl">🐷</span>
