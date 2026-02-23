@@ -108,10 +108,16 @@ function Layout() {
           ))}
 
           {canManageUsersByRole(userProfile?.rol) && (
-            <NavLink to="/usuarios" className={navClass} onClick={handleNavigate}>
-              <span>🛡️</span>
-              <span>Usuarios</span>
-            </NavLink>
+            <>
+              <NavLink to="/usuarios" className={navClass} onClick={handleNavigate}>
+                <span>🛡️</span>
+                <span>Usuarios</span>
+              </NavLink>
+              <NavLink to="/auditoria" className={navClass} onClick={handleNavigate}>
+                <span>📚</span>
+                <span>Auditoría</span>
+              </NavLink>
+            </>
           )}
 
           <div className="my-3 border-t border-green-600" />

@@ -11,6 +11,7 @@ const Clientes = lazy(() => import("./pages/Clientes"));
 const Fiados = lazy(() => import("./pages/Fiados"));
 const Gastos = lazy(() => import("./pages/Gastos"));
 const Usuarios = lazy(() => import("./pages/Usuarios"));
+const Auditoria = lazy(() => import("./pages/Auditoria"));
 const Login = lazy(() => import("./pages/Login"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 
@@ -42,6 +43,7 @@ function App() {
           <Route path="/fiados" element={<Fiados />} />
           <Route path="/gastos" element={<Gastos />} />
           <Route path="/usuarios" element={<Usuarios />} />
+          <Route path="/auditoria" element={<Auditoria />} />
         </Route>
       </Routes>
     </Suspense>
