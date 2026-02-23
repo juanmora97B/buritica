@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from "react"
 import toast from "react-hot-toast"
 import { supabase } from "../lib/supabase"
+import { canEditByRole } from "../lib/permissions"
+import { useCurrentUser } from "../hooks/useCurrentUser"
 import { formatNumber, parseNumber } from "../utils/formatNumber"
 
 const sumarPagos = (pagos) => pagos?.reduce((acc, p) => acc + Number(p.monto || 0), 0) ?? 0
 
 export default function Clientes() {
+  const { userProfile } = useCurrentUser()
+  const canEdit = canEditByRole(userProfile?.rol)
   const [clientes, setClientes] = useState([])
   const [ventas, setVentas] = useState([])
   const [ventasLibriado, setVentasLibriado] = useState([])
@@ -159,6 +163,7 @@ export default function Clientes() {
   }
 
   const agregarCliente = async () => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (!nombre) return toast.error("Ingrese nombre")
 
     const { error } = await supabase.from("clientes").insert([
@@ -188,6 +193,7 @@ export default function Clientes() {
   }
 
   const iniciarEdicion = (cliente) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     setEditId(cliente.id)
     setEditNombre(cliente.nombre || "")
     setEditTelefono(cliente.telefono || "")
@@ -212,6 +218,7 @@ export default function Clientes() {
   }
 
   const guardarEdicion = async (id) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     const { error } = await supabase
       .from("clientes")
       .update({
@@ -249,6 +256,7 @@ export default function Clientes() {
   }
 
   const agregarContacto = async () => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (!nuevoContactoValor) return toast.error("Ingrese valor del contacto")
 
     const { error } = await supabase.from("contacto_clientes").insert([
@@ -269,6 +277,7 @@ export default function Clientes() {
   }
 
   const eliminarContacto = async (id) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (!confirm("¿Eliminar este contacto?")) return
 
     const { error } = await supabase.from("contacto_clientes").delete().eq("id", id)
@@ -278,6 +287,7 @@ export default function Clientes() {
   }
 
   const marcarPrincipal = async (id) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     // Quitar principal de todos
     await supabase.from("contacto_clientes").update({ principal: false }).eq("cliente_id", contactosClienteId)
 

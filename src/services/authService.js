@@ -1,4 +1,25 @@
 import { supabase } from "../lib/supabase"
+import { createClient } from "@supabase/supabase-js"
+
+let adminCreateClient = null
+
+const getAdminCreateClient = () => {
+  if (adminCreateClient) return adminCreateClient
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+  adminCreateClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+      storageKey: "sb-admin-create-user"
+    }
+  })
+
+  return adminCreateClient
+}
 
 // Obtener usuario actual desde auth
 export const getCurrentUser = async () => {
@@ -17,11 +38,7 @@ export const syncUserProfile = async (user) => {
     .single()
 
   if (existingUser) {
-    // Usuario ya existe, solo actualizar
-    await supabase
-      .from("usuarios")
-      .update({ updated_at: new Date().toISOString() })
-      .eq("id", user.id)
+    // Usuario ya existe
     return existingUser
   }
 
@@ -79,6 +96,100 @@ export const updateUserRole = async (userId, role) => {
   }
 
   return data
+}
+
+export const updateUserStatus = async (userId, status) => {
+  const { data, error } = await supabase
+    .from("usuarios")
+    .update({ estado: status })
+    .eq("id", userId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error updating user status:", error)
+    return null
+  }
+
+  return data
+}
+
+export const listUsers = async () => {
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("id, email, nombre, rol, estado, created_at")
+    .order("created_at", { ascending: false })
+
+  if (error) {
+    console.error("Error listing users:", error)
+    return null
+  }
+
+  return data
+}
+
+export const createUserFromAdmin = async ({ email, password, nombre, rol, estado }) => {
+  const isolatedClient = getAdminCreateClient()
+
+  const { data: signUpData, error: signUpError } = await isolatedClient.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/auth/callback`,
+      data: {
+        full_name: nombre
+      }
+    }
+  })
+
+  if (signUpError) {
+    console.error("Error creating auth user:", signUpError)
+    return { error: signUpError.message }
+  }
+
+  const authUserId = signUpData?.user?.id
+  if (!authUserId) {
+    console.error("Error creating auth user: missing user id")
+    return { error: "No se recibió el id del usuario creado" }
+  }
+
+  const { data, error } = await supabase
+    .from("usuarios")
+    .upsert(
+      [
+        {
+          id: authUserId,
+          email,
+          nombre,
+          rol,
+          estado
+        }
+      ],
+      { onConflict: "id" }
+    )
+    .select()
+    .single()
+
+  if (error) {
+    console.error("Error creating user profile:", error)
+    return { error: error.message }
+  }
+
+  return {
+    data,
+    requiresEmailConfirmation: !signUpData?.user?.email_confirmed_at
+  }
+}
+
+export const deleteUserProfile = async (userId) => {
+  const { error } = await supabase.rpc("admin_delete_user", { target_user_id: userId })
+
+  if (error) {
+    console.error("Error deleting user completely:", error)
+    return false
+  }
+
+  return true
 }
 
 // Logout

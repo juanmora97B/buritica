@@ -10,7 +10,9 @@ const NuevaVenta = lazy(() => import("./pages/NuevaVenta"));
 const Clientes = lazy(() => import("./pages/Clientes"));
 const Fiados = lazy(() => import("./pages/Fiados"));
 const Gastos = lazy(() => import("./pages/Gastos"));
+const Usuarios = lazy(() => import("./pages/Usuarios"));
 const Login = lazy(() => import("./pages/Login"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center text-gray-600">
@@ -23,6 +25,7 @@ function App() {
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
 
         <Route
           element={
@@ -38,6 +41,7 @@ function App() {
           <Route path="/clientes" element={<Clientes />} />
           <Route path="/fiados" element={<Fiados />} />
           <Route path="/gastos" element={<Gastos />} />
+          <Route path="/usuarios" element={<Usuarios />} />
         </Route>
       </Routes>
     </Suspense>

@@ -2,12 +2,14 @@ import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import { supabase } from "../lib/supabase"
 import { useCurrentUser } from "../hooks/useCurrentUser"
+import { canEditByRole } from "../lib/permissions"
 import { formatNumber, parseNumber } from "../utils/formatNumber"
 
 const tipos = ["Alimento", "Medicamentos", "Transporte", "Servicios", "Otros"]
 
 export default function Gastos() {
-  const { user } = useCurrentUser()
+  const { user, userProfile } = useCurrentUser()
+  const canEdit = canEditByRole(userProfile?.rol)
   const [gastos, setGastos] = useState([])
   const [descripcion, setDescripcion] = useState("")
   const [monto, setMonto] = useState("")
@@ -72,6 +74,7 @@ export default function Gastos() {
   }, [])
 
   const agregarGasto = async () => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (!descripcion || !monto) return toast.error("Ingrese descripcion y monto")
     if (parseNumber(monto) <= 0) return toast.error("El monto debe ser mayor a 0")
 
@@ -116,6 +119,7 @@ export default function Gastos() {
   }
 
   const iniciarEdicion = (gasto) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     setEditId(gasto.id)
     setEditDescripcion(gasto.descripcion || "")
     setEditMonto(formatNumber(gasto.monto || ""))
@@ -132,6 +136,7 @@ export default function Gastos() {
   }
 
   const guardarEdicion = async (id) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (parseNumber(editMonto) <= 0) return toast.error("El monto debe ser mayor a 0")
 
     const { error } = await supabase
@@ -151,6 +156,7 @@ export default function Gastos() {
   }
 
   const eliminarGasto = async (id) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     const confirmar = window.confirm("¿Eliminar gasto?")
     if (!confirmar) return
 

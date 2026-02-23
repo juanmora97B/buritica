@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import toast from "react-hot-toast"
 import { supabase } from "../lib/supabase"
+import { canEditByRole } from "../lib/permissions"
+import { useCurrentUser } from "../hooks/useCurrentUser"
 import { formatNumber, parseNumber } from "../utils/formatNumber"
 
 const estadoOpciones = ["vivo", "vendido_pie", "vendido_canal", "vendido_kilo", "muerto"]
@@ -19,6 +21,8 @@ const nombreTipoVenta = (estado) => {
 
 export default function Cerdos() {
   const navigate = useNavigate()
+  const { userProfile } = useCurrentUser()
+  const canEdit = canEditByRole(userProfile?.rol)
   const [cerdos, setCerdos] = useState([])
   const [ventas, setVentas] = useState([])
   const [gastos, setGastos] = useState([])
@@ -111,6 +115,7 @@ export default function Cerdos() {
   }, [cerdosVivos, cerdosVendidos, cerdosMuertos])
 
   const agregarCerdo = async () => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (!peso) return toast.error("Ingrese peso")
     if (parseNumber(peso) <= 0) return toast.error("El peso debe ser mayor a 0")
 
@@ -135,6 +140,7 @@ export default function Cerdos() {
   }
 
   const iniciarEdicion = (cerdo) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     setEditId(cerdo.id)
     setEditPeso(formatNumber(cerdo.peso || ""))
     setEditEstado(cerdo.estado || "vivo")
@@ -153,6 +159,7 @@ export default function Cerdos() {
   }
 
   const guardarEdicion = async (cerdo) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (parseNumber(editPeso) <= 0) return toast.error("El peso inicial debe ser mayor a 0")
     if (editPesoFinal && parseNumber(editPesoFinal) <= 0) return toast.error("El peso final debe ser mayor a 0")
 
@@ -181,6 +188,7 @@ export default function Cerdos() {
   }
 
   const cambiarEstado = async (cerdo, nuevoEstado) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     const { error } = await supabase.from("cerdos").update({ estado: nuevoEstado }).eq("id", cerdo.id)
     if (error) return toast.error(error.message)
 
@@ -231,6 +239,7 @@ export default function Cerdos() {
   }
 
   const agregarEtiqueta = async () => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (!nuevaEtiqueta.trim()) return toast.error("Ingrese una etiqueta")
 
     const { error } = await supabase.from("etiquetas_cerdos").insert([
@@ -247,6 +256,7 @@ export default function Cerdos() {
   }
 
   const eliminarEtiqueta = async (etiquetaId) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     const { error } = await supabase.from("etiquetas_cerdos").delete().eq("id", etiquetaId)
 
     if (error) return toast.error(error.message)

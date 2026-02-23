@@ -37,7 +37,17 @@ export default function Login() {
     })
 
     if (loginError) {
-      setError(loginError.message)
+      const rawMessage = loginError.message || ""
+      const normalized = rawMessage.toLowerCase()
+
+      if (normalized.includes("email not confirmed")) {
+        setError("Este usuario debe confirmar su correo antes de iniciar sesión")
+      } else if (normalized.includes("invalid login credentials")) {
+        setError("Credenciales inválidas. Verifica correo y contraseña")
+      } else {
+        setError(rawMessage)
+      }
+
       setLoading(false)
       return
     }

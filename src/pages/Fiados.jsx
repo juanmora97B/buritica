@@ -2,12 +2,14 @@ import { useEffect, useState } from "react"
 import toast from "react-hot-toast"
 import { supabase } from "../lib/supabase"
 import { useCurrentUser } from "../hooks/useCurrentUser"
+import { canEditByRole } from "../lib/permissions"
 import { formatNumber, parseNumber } from "../utils/formatNumber"
 
 const sumarPagos = (pagos) => pagos.reduce((acc, p) => acc + Number(p.monto || 0), 0)
 
 export default function Fiados() {
-  const { user } = useCurrentUser()
+  const { user, userProfile } = useCurrentUser()
+  const canEdit = canEditByRole(userProfile?.rol)
   const [ventasAgrupadas, setVentasAgrupadas] = useState([])
   const [abonosActivos, setAbonosActivos] = useState({})
   const [historialActivo, setHistorialActivo] = useState(null)
@@ -170,6 +172,7 @@ export default function Fiados() {
   }
 
   const registrarAbono = async (ventaId, clienteData) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     const abonoKey = `${ventaId}-${clienteData.clienteId}`
     const abono = abonosActivos[abonoKey]
     
@@ -220,6 +223,7 @@ export default function Fiados() {
   }
 
   const marcarPagado = async (ventaId, clienteData) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (clienteData.esLibriado) {
       // Para libriados: registrar pago de la deuda pendiente y marcar como pagado
       const { error } = await supabase.from("pagos").insert([

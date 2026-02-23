@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import toast from "react-hot-toast"
 import { supabase } from "../lib/supabase"
+import { useCurrentUser } from "../hooks/useCurrentUser"
+import { canEditByRole } from "../lib/permissions"
 
 const sumarPagos = (pagos) => {
   return pagos.reduce((acc, p) => acc + Number(p.monto || 0), 0)
@@ -14,6 +16,8 @@ const obtenerUltimoPago = (pagos) => {
 
 export default function Ventas() {
   const navigate = useNavigate()
+  const { userProfile } = useCurrentUser()
+  const canEdit = canEditByRole(userProfile?.rol)
   const [ventas, setVentas] = useState([])
   const [gastosMap, setGastosMap] = useState({})
 
@@ -62,6 +66,7 @@ export default function Ventas() {
   }, [])
 
   const eliminarVenta = async (id) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     const confirmar = window.confirm("¿Eliminar venta?")
     if (!confirmar) return
 
@@ -78,6 +83,7 @@ export default function Ventas() {
   }
 
   const editarVenta = (ventaId) => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     navigate("/ventas/nueva", { state: { ventaId } })
   }
 
@@ -87,7 +93,10 @@ export default function Ventas() {
 
       <div className="mb-4 flex gap-2">
         <button
-          onClick={() => navigate("/ventas/nueva")}
+          onClick={() => {
+            if (!canEdit) return toast.error("No tienes permisos para editar información")
+            navigate("/ventas/nueva")
+          }}
           className="bg-green-600 text-white px-4 py-2 rounded"
         >
           Nueva Venta

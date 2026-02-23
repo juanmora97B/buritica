@@ -1,5 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { useCurrentUser } from "../hooks/useCurrentUser";
+import { canManageUsersByRole } from "../lib/permissions";
 
 const menuItems = [
   { to: "/", label: "Dashboard", icon: "📊" },
@@ -19,6 +21,7 @@ const navClass = ({ isActive }) =>
 
 function Layout() {
   const navigate = useNavigate();
+  const { userProfile } = useCurrentUser();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -44,6 +47,13 @@ function Layout() {
               <span>{item.label}</span>
             </NavLink>
           ))}
+
+          {canManageUsersByRole(userProfile?.rol) && (
+            <NavLink to="/usuarios" className={navClass}>
+              <span>🛡️</span>
+              <span>Usuarios</span>
+            </NavLink>
+          )}
 
           <div className="my-3 border-t border-green-600" />
 

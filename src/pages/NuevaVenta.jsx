@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom"
 import toast from "react-hot-toast"
 import { supabase } from "../lib/supabase"
 import { useCurrentUser } from "../hooks/useCurrentUser"
+import { canEditByRole } from "../lib/permissions"
 import { formatNumber, parseNumber } from "../utils/formatNumber"
 
 const TIPOS_VENTA = ["pie", "canal", "libriado"]
@@ -20,7 +21,8 @@ const calcularEstadoVenta = (total, pagado, formaPago) => {
 export default function NuevaVenta() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { user } = useCurrentUser()
+  const { user, userProfile } = useCurrentUser()
+  const canEdit = canEditByRole(userProfile?.rol)
   const preselectedCerdoId = location.state?.cerdoId || ""
   const preselectedTipoVenta = location.state?.tipoVenta || ""
   const ventaId = location.state?.ventaId || null
@@ -221,6 +223,7 @@ export default function NuevaVenta() {
   }
 
   const guardarVenta = async () => {
+    if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (saving) return
     if (!cerdoId) return toast.error("Seleccione un cerdo")
 
