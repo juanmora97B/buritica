@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { useCurrentUser } from "../hooks/useCurrentUser";
@@ -22,16 +23,47 @@ const navClass = ({ isActive }) =>
 function Layout() {
   const navigate = useNavigate();
   const { userProfile } = useCurrentUser();
+  const [menuAbierto, setMenuAbierto] = useState(false);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/login", { replace: true });
   };
 
+  const handleNavigate = () => {
+    setMenuAbierto(false);
+  };
+
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen bg-gray-100">
+      <header className="md:hidden sticky top-0 z-40 bg-green-700 text-white px-4 py-3 flex items-center justify-between shadow">
+        <button
+          type="button"
+          onClick={() => setMenuAbierto(true)}
+          className="text-xl"
+          aria-label="Abrir menú"
+        >
+          ☰
+        </button>
+        <h1 className="font-bold">Familia Buritica</h1>
+        <button
+          onClick={handleLogout}
+          className="text-sm bg-green-800 px-2 py-1 rounded"
+        >
+          Salir
+        </button>
+      </header>
+
+      <div className="min-h-[calc(100vh-56px)] md:min-h-screen md:flex">
+      {menuAbierto && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/40 z-40"
+          onClick={() => setMenuAbierto(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-gradient-to-b from-green-700 to-green-800 text-white p-5 border-r border-green-900/30">
+      <aside className={`fixed md:static z-50 top-0 left-0 h-full md:h-auto w-64 bg-gradient-to-b from-green-700 to-green-800 text-white p-5 border-r border-green-900/30 transform transition-transform duration-200 ${menuAbierto ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}>
         <div className="mb-8 rounded-xl bg-green-600/40 p-3 border border-green-500/40">
           <h1 className="text-xl font-bold flex items-center gap-3">
             <span className="text-2xl">🐷</span>
@@ -53,14 +85,14 @@ function Layout() {
 
         <nav className="flex flex-col gap-2">
           {menuItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={navClass} end={item.to === "/"}>
+            <NavLink key={item.to} to={item.to} className={navClass} end={item.to === "/"} onClick={handleNavigate}>
               <span>{item.icon}</span>
               <span>{item.label}</span>
             </NavLink>
           ))}
 
           {canManageUsersByRole(userProfile?.rol) && (
-            <NavLink to="/usuarios" className={navClass}>
+            <NavLink to="/usuarios" className={navClass} onClick={handleNavigate}>
               <span>🛡️</span>
               <span>Usuarios</span>
             </NavLink>
@@ -83,9 +115,10 @@ function Layout() {
       </aside>
 
       {/* Contenido */}
-      <main className="flex-1 p-8 bg-gray-100">
+      <main className="flex-1 p-4 md:p-8 bg-gray-100 md:ml-0">
         <Outlet />
       </main>
+      </div>
     </div>
   );
 }
