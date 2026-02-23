@@ -38,6 +38,17 @@ function Layout() {
             <span>Familia Buritica</span>
           </h1>
           <p className="text-xs text-green-100 mt-1">Control porcino y ventas</p>
+          <div className="mt-3 bg-green-700/40 rounded-lg p-2 border border-green-500/30">
+            <p className="text-[11px] text-green-100">
+              Usuario: <span className="font-semibold">{userProfile?.nombre || userProfile?.email || "-"}</span>
+            </p>
+            <p className="text-[11px] text-green-100">
+              Rol actual: <span className="font-semibold uppercase">{userProfile?.rol || "-"}</span>
+            </p>
+            <p className="text-[11px] text-green-100">
+              Estado: <span className="font-semibold uppercase">{userProfile?.estado || "-"}</span>
+            </p>
+          </div>
         </div>
 
         <nav className="flex flex-col gap-2">
