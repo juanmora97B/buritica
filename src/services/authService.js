@@ -1,5 +1,6 @@
 import { supabase } from "../lib/supabase"
 import { createClient } from "@supabase/supabase-js"
+import { registrarAuditoria } from "./auditService"
 
 let adminCreateClient = null
 
@@ -19,6 +20,11 @@ const getAdminCreateClient = () => {
   })
 
   return adminCreateClient
+}
+
+const getActorId = async () => {
+  const { data } = await supabase.auth.getUser()
+  return data?.user?.id || null
 }
 
 // Obtener usuario actual desde auth
@@ -95,6 +101,17 @@ export const updateUserRole = async (userId, role) => {
     return null
   }
 
+  const actorId = await getActorId()
+  await registrarAuditoria({
+    usuarioId: actorId,
+    modulo: "usuarios",
+    accion: "update_rol",
+    entidad: "usuarios",
+    entidadId: String(userId),
+    descripcion: `Actualizó rol a ${role}`,
+    metadata: { role }
+  })
+
   return data
 }
 
@@ -110,6 +127,17 @@ export const updateUserStatus = async (userId, status) => {
     console.error("Error updating user status:", error)
     return null
   }
+
+  const actorId = await getActorId()
+  await registrarAuditoria({
+    usuarioId: actorId,
+    modulo: "usuarios",
+    accion: "update_estado",
+    entidad: "usuarios",
+    entidadId: String(userId),
+    descripcion: `Actualizó estado a ${status}`,
+    metadata: { status }
+  })
 
   return data
 }
@@ -175,6 +203,17 @@ export const createUserFromAdmin = async ({ email, password, nombre, rol, estado
     return { error: error.message }
   }
 
+  const actorId = await getActorId()
+  await registrarAuditoria({
+    usuarioId: actorId,
+    modulo: "usuarios",
+    accion: "create",
+    entidad: "usuarios",
+    entidadId: String(authUserId),
+    descripcion: `Creó usuario ${email}`,
+    metadata: { email, nombre, rol, estado }
+  })
+
   return {
     data,
     requiresEmailConfirmation: !signUpData?.user?.email_confirmed_at
@@ -182,12 +221,23 @@ export const createUserFromAdmin = async ({ email, password, nombre, rol, estado
 }
 
 export const deleteUserProfile = async (userId) => {
+  const actorId = await getActorId()
+
   const { error } = await supabase.rpc("admin_delete_user", { target_user_id: userId })
 
   if (error) {
     console.error("Error deleting user completely:", error)
     return false
   }
+
+  await registrarAuditoria({
+    usuarioId: actorId,
+    modulo: "usuarios",
+    accion: "delete",
+    entidad: "usuarios",
+    entidadId: String(userId),
+    descripcion: "Eliminó usuario de auth y perfil"
+  })
 
   return true
 }

@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase"
 import { useCurrentUser } from "../hooks/useCurrentUser"
 import { canEditByRole } from "../lib/permissions"
 import { formatNumber, parseNumber } from "../utils/formatNumber"
+import { registrarAuditoria } from "../services/auditService"
 
 const tipos = ["Alimento", "Medicamentos", "Transporte", "Servicios", "Otros"]
 
@@ -97,6 +98,15 @@ export default function Gastos() {
 
       const { error } = await supabase.from("gastos").insert(gastosArray)
       if (error) return toast.error(error.message)
+
+      await registrarAuditoria({
+        usuarioId: user?.id || null,
+        modulo: "gastos",
+        accion: "create_distribuido",
+        entidad: "gastos",
+        descripcion: `Creó gasto distribuido en ${cerdosSeleccionados.length} cerdos`,
+        metadata: { descripcion, monto: parseNumber(monto), tipo, cerdosSeleccionados }
+      })
     } else {
       // Gasto normal sin distribución
       const { error } = await supabase.from("gastos").insert([
@@ -109,6 +119,15 @@ export default function Gastos() {
         }
       ])
       if (error) return toast.error(error.message)
+
+      await registrarAuditoria({
+        usuarioId: user?.id || null,
+        modulo: "gastos",
+        accion: "create",
+        entidad: "gastos",
+        descripcion: "Creó gasto",
+        metadata: { descripcion, monto: parseNumber(monto), tipo, fecha }
+      })
     }
 
     setDescripcion("")
@@ -151,6 +170,21 @@ export default function Gastos() {
 
     if (error) return toast.error(error.message)
 
+    await registrarAuditoria({
+      usuarioId: user?.id || null,
+      modulo: "gastos",
+      accion: "update",
+      entidad: "gastos",
+      entidadId: String(id),
+      descripcion: "Actualizó gasto",
+      metadata: {
+        descripcion: editDescripcion,
+        monto: parseNumber(editMonto),
+        tipo: editTipo,
+        fecha: editFecha
+      }
+    })
+
     cancelarEdicion()
     fetchGastos()
   }
@@ -162,6 +196,15 @@ export default function Gastos() {
 
     const { error } = await supabase.from("gastos").delete().eq("id", id)
     if (error) return toast.error(error.message)
+
+    await registrarAuditoria({
+      usuarioId: user?.id || null,
+      modulo: "gastos",
+      accion: "delete",
+      entidad: "gastos",
+      entidadId: String(id),
+      descripcion: "Eliminó gasto"
+    })
 
     setGastos(gastos.filter((g) => g.id !== id))
   }

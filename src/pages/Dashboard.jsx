@@ -33,6 +33,41 @@ export default function Dashboard() {
   const [gananciaPorTipo, setGananciaPorTipo] = useState({ pie: 0, canal: 0, libriado: 0 })
   const [topCompradores, setTopCompradores] = useState([])
   const [topDeudores, setTopDeudores] = useState([])
+  const [fiadosVencidosCantidad, setFiadosVencidosCantidad] = useState(0)
+  const [fiadosVencidosMonto, setFiadosVencidosMonto] = useState(0)
+  const [cierreDiario, setCierreDiario] = useState({
+    fecha: "",
+    ventasHoy: 0,
+    gastosHoy: 0,
+    pagosHoy: 0,
+    deudaGeneradaHoy: 0,
+    gananciaHoy: 0
+  })
+
+  const descargarCierreDiario = () => {
+    const lineas = [
+      ["fecha", "ventas_hoy", "gastos_hoy", "pagos_hoy", "deuda_generada_hoy", "ganancia_hoy"],
+      [
+        cierreDiario.fecha,
+        cierreDiario.ventasHoy,
+        cierreDiario.gastosHoy,
+        cierreDiario.pagosHoy,
+        cierreDiario.deudaGeneradaHoy,
+        cierreDiario.gananciaHoy
+      ]
+    ]
+
+    const csv = lineas.map((fila) => fila.join(",")).join("\n")
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.setAttribute("download", `cierre_diario_${cierreDiario.fecha || "hoy"}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   const etiquetaPeriodo = useMemo(() => {
     if (filtroPeriodo === "hoy") return "hoy"
@@ -52,13 +87,13 @@ export default function Dashboard() {
           .from("ventas")
           .select(`
             id, total, estado, fecha, cliente_id,
-            clientes(nombre),
+            clientes(nombre, dias_pago),
             detalle_venta(cerdo_id),
-            ventas_libriado(id, cliente_id, subtotal, estado, clientes(nombre))
+            ventas_libriado(id, cliente_id, subtotal, estado, clientes(nombre, dias_pago))
           `)
           .order("created_at", { ascending: false }),
         supabase.from("gastos").select("monto, fecha, cerdo_id"),
-        supabase.from("pagos").select("venta_id, ventas_libriado_id, monto")
+        supabase.from("pagos").select("venta_id, ventas_libriado_id, monto, fecha")
       ])
 
       const cerdos = cerdosRes.data || []
@@ -96,7 +131,10 @@ export default function Dashboard() {
       }
 
       const ventasHoyData = ventas.filter((v) => v.fecha === hoyStr)
-      setVentasHoy(ventasHoyData.reduce((acc, v) => acc + Number(v.total || 0), 0))
+      const ventasHoyTotal = ventasHoyData.reduce((acc, v) => acc + Number(v.total || 0), 0)
+      const gastosHoyTotal = gastos.filter((g) => g.fecha === hoyStr).reduce((acc, g) => acc + Number(g.monto || 0), 0)
+      const pagosHoyTotal = pagos.filter((p) => p.fecha === hoyStr).reduce((acc, p) => acc + Number(p.monto || 0), 0)
+      setVentasHoy(ventasHoyTotal)
 
       const ventasFiltradas = ventas.filter((v) => fechaEnPeriodo(v.fecha))
       const gastosFiltrados = gastos.filter((g) => fechaEnPeriodo(g.fecha))
@@ -151,6 +189,9 @@ export default function Dashboard() {
       })
 
       const deudoresReales = []
+      let fiadosVencidos = 0
+      let montoVencido = 0
+      let deudaGeneradaHoy = 0
 
       ventas.forEach((venta) => {
         if (venta.estado === "pagada") return
@@ -162,12 +203,26 @@ export default function Dashboard() {
         const deuda = Math.max(0, Number(venta.total || 0) - sumarPagos(pagosVenta))
 
         if (deuda > 0) {
+          const diasPago = Number(venta.clientes?.dias_pago || 30)
+          const fechaVencimiento = new Date(`${venta.fecha}T00:00:00`)
+          fechaVencimiento.setDate(fechaVencimiento.getDate() + diasPago)
+          const estaVencido = fechaVencimiento < new Date(`${hoyStr}T00:00:00`)
+
           deudoresReales.push({
             key: `venta-${venta.id}`,
             nombre: venta.clientes?.nombre || "Cliente sin nombre",
             referencia: `Venta #${venta.id}`,
             deuda
           })
+
+          if (estaVencido) {
+            fiadosVencidos += 1
+            montoVencido += deuda
+          }
+
+          if (venta.fecha === hoyStr) {
+            deudaGeneradaHoy += deuda
+          }
         }
       })
 
@@ -178,14 +233,40 @@ export default function Dashboard() {
           const deuda = Math.max(0, Number(fila.subtotal || 0) - sumarPagos(pagosFila))
 
           if (deuda > 0) {
+            const diasPago = Number(fila.clientes?.dias_pago || 30)
+            const fechaVencimiento = new Date(`${venta.fecha}T00:00:00`)
+            fechaVencimiento.setDate(fechaVencimiento.getDate() + diasPago)
+            const estaVencido = fechaVencimiento < new Date(`${hoyStr}T00:00:00`)
+
             deudoresReales.push({
               key: `libriado-${fila.id}`,
               nombre: fila.clientes?.nombre || "Cliente sin nombre",
               referencia: `Libriado Venta #${venta.id}`,
               deuda
             })
+
+            if (estaVencido) {
+              fiadosVencidos += 1
+              montoVencido += deuda
+            }
+
+            if (venta.fecha === hoyStr) {
+              deudaGeneradaHoy += deuda
+            }
           }
         })
+      })
+
+      setFiadosVencidosCantidad(fiadosVencidos)
+      setFiadosVencidosMonto(montoVencido)
+
+      setCierreDiario({
+        fecha: hoyStr,
+        ventasHoy: ventasHoyTotal,
+        gastosHoy: gastosHoyTotal,
+        pagosHoy: pagosHoyTotal,
+        deudaGeneradaHoy,
+        gananciaHoy: ventasHoyTotal - gastosHoyTotal
       })
 
       setClientesDeudores(deudoresReales)
@@ -237,6 +318,12 @@ export default function Dashboard() {
         </div>
       )}
 
+      {fiadosVencidosCantidad > 0 && (
+        <div className="bg-red-100 text-red-800 p-4 rounded-xl mb-4">
+          ⚠️ Fiados vencidos: {fiadosVencidosCantidad} registros por $ {formatearDinero(fiadosVencidosMonto)}
+        </div>
+      )}
+
       <div className="bg-white shadow-lg rounded-xl p-4 mb-4 flex flex-wrap gap-3 items-end">
         <div>
           <label className="block text-sm text-gray-600 mb-1">Periodo</label>
@@ -274,6 +361,13 @@ export default function Dashboard() {
             </div>
           </>
         )}
+
+        <button
+          onClick={descargarCierreDiario}
+          className="bg-green-700 text-white px-4 py-2 rounded"
+        >
+          Descargar cierre diario (CSV)
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-6">

@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase"
 import { useCurrentUser } from "../hooks/useCurrentUser"
 import { canEditByRole } from "../lib/permissions"
 import { formatNumber, parseNumber } from "../utils/formatNumber"
+import { registrarAuditoria } from "../services/auditService"
 
 const sumarPagos = (pagos) => pagos.reduce((acc, p) => acc + Number(p.monto || 0), 0)
 
@@ -213,6 +214,21 @@ export default function Fiados() {
       await supabase.from("ventas").update({ estado }).eq("id", ventaId)
     }
 
+    await registrarAuditoria({
+      usuarioId: user?.id || null,
+      modulo: "fiados",
+      accion: "abono",
+      entidad: clienteData.esLibriado ? "ventas_libriado" : "ventas",
+      entidadId: String(clienteData.esLibriado ? clienteData.libriado_id : ventaId),
+      descripcion: `Registró abono a ${clienteData.nombre}`,
+      metadata: {
+        ventaId,
+        clienteId: clienteData.clienteId,
+        monto: parseNumber(abono.monto),
+        metodo: abono.metodo || "Efectivo"
+      }
+    })
+
     // Limpiar abono y recargar
     setAbonosActivos((prev) => {
       const nuevo = { ...prev }
@@ -258,6 +274,20 @@ export default function Fiados() {
 
       await supabase.from("ventas").update({ estado: "pagada" }).eq("id", ventaId)
     }
+
+    await registrarAuditoria({
+      usuarioId: user?.id || null,
+      modulo: "fiados",
+      accion: "pagar_todo",
+      entidad: clienteData.esLibriado ? "ventas_libriado" : "ventas",
+      entidadId: String(clienteData.esLibriado ? clienteData.libriado_id : ventaId),
+      descripcion: `Marcó deuda como pagada para ${clienteData.nombre}`,
+      metadata: {
+        ventaId,
+        clienteId: clienteData.clienteId,
+        deuda: Number(clienteData.deuda || 0)
+      }
+    })
 
     cargarDatos()
   }

@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase"
 import { useCurrentUser } from "../hooks/useCurrentUser"
 import { canEditByRole } from "../lib/permissions"
 import { formatNumber, parseNumber } from "../utils/formatNumber"
+import { registrarAuditoria } from "../services/auditService"
 
 const TIPOS_VENTA = ["pie", "canal", "libriado"]
 
@@ -332,6 +333,22 @@ export default function NuevaVenta() {
             fecha
           }
         ])
+
+        await registrarAuditoria({
+          usuarioId: user?.id || null,
+          modulo: "ventas",
+          accion: ventaId ? "update" : "create",
+          entidad: "ventas",
+          entidadId: String(nuevaVentaId),
+          descripcion: `${ventaId ? "Actualizó" : "Creó"} venta ${tipoVenta}`,
+          metadata: {
+            tipoVenta,
+            cerdoId: Number(cerdoId),
+            clienteId: Number(clienteId),
+            total: totalDirecto,
+            estadoVenta
+          }
+        })
       }
 
       if (tipoVenta === "libriado") {
@@ -454,6 +471,22 @@ export default function NuevaVenta() {
             fecha
           }
         ])
+
+        await registrarAuditoria({
+          usuarioId: user?.id || null,
+          modulo: "ventas",
+          accion: ventaId ? "update" : "create",
+          entidad: "ventas",
+          entidadId: String(nuevaVentaId),
+          descripcion: `${ventaId ? "Actualizó" : "Creó"} venta libriado`,
+          metadata: {
+            tipoVenta,
+            cerdoId: Number(cerdoId),
+            total: totalLibriado,
+            filas: filasLibriado.length,
+            estadoVenta
+          }
+        })
       }
 
       navigate("/ventas")
