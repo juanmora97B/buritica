@@ -210,7 +210,7 @@ export default function Gastos() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-4">Gastos</h1>
 
       <div className="bg-white shadow rounded p-4 mb-6">
@@ -265,7 +265,7 @@ export default function Gastos() {
             <p className="text-sm font-medium mb-2">
               Selecciona los cerdos (el monto se dividirá equitativamente):
             </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto">
               {cerdos.map((cerdo) => (
                 <label key={cerdo.id} className="flex items-center gap-2 text-sm">
                   <input
@@ -355,7 +355,8 @@ export default function Gastos() {
       </div>
 
       <div className="bg-white shadow rounded p-4">
-        <table className="w-full text-left">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[860px] text-left">
           <thead>
             <tr>
               <th>Fecha</th>
@@ -466,6 +467,7 @@ export default function Gastos() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

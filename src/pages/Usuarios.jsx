@@ -136,7 +136,7 @@ export default function Usuarios() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-4">Gestión de usuarios</h1>
 
       <div className="bg-white shadow rounded p-4 mb-6">
@@ -196,7 +196,8 @@ export default function Usuarios() {
       </div>
 
       <div className="bg-white shadow rounded p-4">
-        <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[700px] text-left text-sm">
           <thead>
             <tr className="border-b">
               <th className="py-2">Nombre</th>
@@ -259,6 +260,7 @@ export default function Usuarios() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   )

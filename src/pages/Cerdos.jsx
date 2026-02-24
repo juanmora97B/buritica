@@ -265,7 +265,7 @@ export default function Cerdos() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-4">Cerdos</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
@@ -331,23 +331,26 @@ export default function Cerdos() {
         </button>
       </div>
 
-      <div className="bg-white shadow rounded p-2 mb-4 inline-flex gap-2">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setTabActiva(tab)}
-            className={`px-4 py-2 rounded text-sm font-semibold ${
-              tabActiva === tab ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"
-            }`}
-          >
-            {tab === "vivos" ? "Vivos" : tab === "muertos" ? "Muertos" : "Vendidos"}
-          </button>
-        ))}
+      <div className="bg-white shadow rounded p-2 mb-4 overflow-x-auto">
+        <div className="inline-flex min-w-max gap-2">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setTabActiva(tab)}
+              className={`px-4 py-2 rounded text-sm font-semibold ${
+                tabActiva === tab ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              {tab === "vivos" ? "Vivos" : tab === "muertos" ? "Muertos" : "Vendidos"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white shadow rounded p-4">
         {tabActiva === "vivos" && (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[920px] text-left">
             <thead>
               <tr>
                 <th>ID</th>
@@ -434,10 +437,12 @@ export default function Cerdos() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         {tabActiva === "muertos" && (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-left">
             <thead>
               <tr>
                 <th>ID</th>
@@ -472,10 +477,12 @@ export default function Cerdos() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
 
         {tabActiva === "vendidos" && (
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px] text-left">
             <thead>
               <tr>
                 <th>ID</th>
@@ -524,6 +531,7 @@ export default function Cerdos() {
               })}
             </tbody>
           </table>
+          </div>
         )}
 
         {historialId && (
@@ -550,8 +558,8 @@ export default function Cerdos() {
                 <h2 className="text-xl font-bold">Editar Cerdo #{editId}</h2>
                 <button onClick={cancelarEdicion} className="text-2xl">×</button>
               </div>
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 md:p-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold mb-1">Peso inicial (lb)</label>
                     <input
@@ -628,8 +636,8 @@ export default function Cerdos() {
                 <h2 className="text-xl font-bold">Etiquetas del Cerdo #{etiquetasCerdoId}</h2>
                 <button onClick={() => abrirGestorEtiquetas(etiquetasCerdoId)} className="text-2xl">×</button>
               </div>
-              <div className="p-6 space-y-3">
-                <div className="flex gap-2">
+              <div className="p-4 md:p-6 space-y-3">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={nuevaEtiqueta}

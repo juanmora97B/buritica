@@ -299,7 +299,7 @@ export default function Clientes() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-4">Clientes</h1>
 
       <div className="bg-white shadow rounded p-4 mb-6">
@@ -374,7 +374,8 @@ export default function Clientes() {
       </div>
 
       <div className="bg-white shadow rounded p-4">
-        <table className="w-full text-left text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead>
             <tr className="border-b">
               <th className="py-2">Nombre</th>
@@ -484,13 +485,14 @@ export default function Clientes() {
             ))}
           </tbody>
         </table>
+        </div>
 
         {historialId && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 md:p-6">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-2xl font-bold">Deudas de {clientes.find(c => c.id === historialId)?.nombre}</h2>
+                  <h2 className="text-lg md:text-2xl font-bold">Deudas de {clientes.find(c => c.id === historialId)?.nombre}</h2>
                   <button
                     onClick={() => setHistorialId(null)}
                     className="text-white text-2xl hover:bg-blue-800 w-8 h-8 flex items-center justify-center rounded"
@@ -500,7 +502,7 @@ export default function Clientes() {
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-4 md:p-6">
                 {deudaDetalladoCliente.length === 0 ? (
                   <p className="text-gray-500 text-center py-8">Sin deudas registradas</p>
                 ) : (
@@ -522,7 +524,7 @@ export default function Clientes() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3 text-sm mb-3 border-t pt-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm mb-3 border-t pt-3">
                           <div>
                             <span className="text-gray-600">Total:</span>
                             <p className="font-bold">${deuda.total.toLocaleString('es-CO')}</p>
@@ -542,7 +544,7 @@ export default function Clientes() {
                             <p className="text-sm font-semibold text-gray-700 mb-2">Abonos:</p>
                             <div className="space-y-1">
                               {deuda.abonosPagos.map((abono, i) => (
-                                <div key={i} className="flex justify-between text-sm bg-white p-2 rounded">
+                                <div key={i} className="flex flex-col sm:flex-row sm:justify-between text-sm bg-white p-2 rounded gap-1 sm:gap-2">
                                   <span>{new Date(abono.fecha).toLocaleDateString('es-CO')}</span>
                                   <span className="text-green-600 font-semibold">${Number(abono.monto).toLocaleString('es-CO')}</span>
                                   <span className="text-gray-500">{abono.metodo}</span>
@@ -577,10 +579,10 @@ export default function Clientes() {
                 <button onClick={() => setContactosClienteId(null)} className="text-2xl">×</button>
               </div>
               
-              <div className="p-6">
+              <div className="p-4 md:p-6">
                 <div className="mb-6 p-4 bg-gray-50 rounded border">
                   <h3 className="font-semibold mb-3">Agregar nuevo contacto</h3>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <select
                       value={nuevoContactoTipo}
                       onChange={(e) => setNuevoContactoTipo(e.target.value)}
@@ -598,7 +600,7 @@ export default function Clientes() {
                       onChange={(e) => setNuevoContactoValor(e.target.value)}
                       className="border p-2 rounded"
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <input
                         type="checkbox"
                         id="principal"

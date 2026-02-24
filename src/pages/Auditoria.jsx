@@ -58,7 +58,7 @@ export default function Auditoria() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-4">Auditoría</h1>
 
       <div className="bg-white shadow rounded p-4 mb-4 grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -103,7 +103,7 @@ export default function Auditoria() {
       </div>
 
       <div className="bg-white shadow rounded p-4 overflow-x-auto">
-        <table className="w-full text-sm text-left">
+        <table className="w-full min-w-[900px] text-sm text-left">
           <thead>
             <tr className="border-b">
               <th className="py-2">Fecha</th>

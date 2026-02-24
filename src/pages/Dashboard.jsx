@@ -311,7 +311,7 @@ export default function Dashboard() {
   const gananciaPeriodo = ventasPeriodo - gastosPeriodo
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {alertaInventario && (
         <div className="bg-yellow-100 text-yellow-800 p-4 rounded-xl mb-4">
           🚨 Inventario bajo: quedan pocos cerdos vivos
@@ -370,7 +370,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
         <Card title="🐷 Cerdos vivos" value={cerdosVivos} />
         <Card title="💰 Ventas hoy" value={`$ ${formatearDinero(ventasHoy)}`} />
         <Card title={`📈 Ventas ${etiquetaPeriodo}`} value={`$ ${formatearDinero(ventasPeriodo)}`} />
@@ -379,7 +379,7 @@ export default function Dashboard() {
         <Card title="🧾 Deuda total por cobrar" value={`$ ${formatearDinero(deudaTotal)}`} />
         <Card title="👥 Deudores activos" value={deudoresActivos} />
 
-        <div className="bg-white shadow-lg rounded-xl p-6 col-span-2">
+        <div className="bg-white shadow-lg rounded-xl p-4 md:p-6 sm:col-span-2">
           <h2 className="text-lg font-bold mb-4">📊 Ganancia neta por tipo de venta</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <MiniCard title="Pie" value={`$ ${formatearDinero(gananciaPorTipo.pie)}`} />
@@ -388,16 +388,17 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-white shadow-lg rounded-xl p-6 col-span-2">
+        <div className="bg-white shadow-lg rounded-xl p-4 md:p-6 sm:col-span-2">
           <h2 className="text-lg font-bold mb-4">📊 Ventas por día</h2>
           <Suspense fallback={<div className="h-[300px] flex items-center justify-center text-gray-500">Cargando gráfica...</div>}>
             <DashboardSalesChart data={ventasDiarias} />
           </Suspense>
         </div>
 
-        <div className="bg-white shadow-lg rounded-xl p-6 col-span-2">
+        <div className="bg-white shadow-lg rounded-xl p-4 md:p-6 sm:col-span-2">
           <h2 className="text-lg font-bold mb-4">📋 Últimas ventas</h2>
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left">
             <thead>
               <tr>
                 <th>ID</th>
@@ -417,9 +418,10 @@ export default function Dashboard() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
-        <div className="bg-white shadow-lg rounded-xl p-6 col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white shadow-lg rounded-xl p-4 md:p-6 sm:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <h2 className="text-lg font-bold mb-3">🏆 Top 5 clientes por compra</h2>
             {topCompradores.length === 0 ? (
@@ -449,7 +451,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-red-50 shadow-lg rounded-xl p-6 col-span-2">
+        <div className="bg-red-50 shadow-lg rounded-xl p-4 md:p-6 sm:col-span-2">
           <h2 className="text-lg font-bold mb-4 text-red-600">⚠️ Clientes con deuda</h2>
 
           {clientesDeudores.length === 0 ? (
