@@ -7,6 +7,13 @@ import { formatNumber, parseNumber } from "../utils/formatNumber"
 
 const sumarPagos = (pagos) => pagos?.reduce((acc, p) => acc + Number(p.monto || 0), 0) ?? 0
 
+const normalizarTelefonoCO = (valor) => {
+  const soloDigitos = String(valor || "").replace(/\D/g, "")
+  if (!soloDigitos) return ""
+  if (soloDigitos.startsWith("57")) return soloDigitos
+  return `57${soloDigitos}`
+}
+
 export default function Clientes() {
   const { userProfile } = useCurrentUser()
   const canEdit = canEditByRole(userProfile?.rol)
@@ -42,6 +49,11 @@ export default function Clientes() {
   const [nuevoContactoTipo, setNuevoContactoTipo] = useState("telefono")
   const [nuevoContactoValor, setNuevoContactoValor] = useState("")
   const [nuevoContactoPrincipal, setNuevoContactoPrincipal] = useState(false)
+
+  const onChangeTelefono = (valor) => {
+    const normalizado = normalizarTelefonoCO(valor)
+    setTelefono(normalizado)
+  }
 
   async function fetchClientes() {
     const { data } = await supabase.from("clientes").select("*").order("nombre")
@@ -169,7 +181,7 @@ export default function Clientes() {
     const { error } = await supabase.from("clientes").insert([
       {
         nombre,
-        telefono: telefono || null,
+        telefono: normalizarTelefonoCO(telefono) || null,
         direccion: direccion || null,
         email: email || null,
         limite_credito: limiteCfredito ? parseNumber(limiteCfredito) : 0,
@@ -223,7 +235,7 @@ export default function Clientes() {
       .from("clientes")
       .update({
         nombre: editNombre,
-        telefono: editTelefono || null,
+        telefono: normalizarTelefonoCO(editTelefono) || null,
         direccion: editDireccion || null,
         email: editEmail || null,
         limite_credito: editLimiteCredito ? parseNumber(editLimiteCredito) : 0,
@@ -313,7 +325,7 @@ export default function Clientes() {
           <input
             placeholder="Telefono"
             value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
+            onChange={(e) => onChangeTelefono(e.target.value)}
             className="border p-2 rounded"
           />
           <input
