@@ -102,7 +102,7 @@ export default function Usuarios() {
   }
 
   const eliminarUsuario = async (usuarioFila) => {
-    if (String(usuario?.id) === String(usuarioFila.id)) {
+    if (String(user?.id) === String(usuarioFila.id)) {
       return toast.error("No puedes eliminar tu propio usuario")
     }
 

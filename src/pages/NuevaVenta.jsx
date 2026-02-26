@@ -223,6 +223,19 @@ export default function NuevaVenta() {
     setFilasLibriado((prev) => prev.filter((fila) => fila.id !== id))
   }
 
+  const saveVentaAtomica = async ({ ventaPayload, detallePayload = [], pagosPayload = [], libriadoPayload = [] }) => {
+    const { data, error } = await supabase.rpc("save_venta_atomic", {
+      p_venta_id: ventaId ? Number(ventaId) : null,
+      p_venta: ventaPayload,
+      p_detalle: detallePayload,
+      p_pagos: pagosPayload,
+      p_libriado: libriadoPayload
+    })
+
+    if (error) throw error
+    return Number(data)
+  }
+
   const guardarVenta = async () => {
     if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (saving) return
@@ -254,69 +267,39 @@ export default function NuevaVenta() {
 
         const estadoVenta = calcularEstadoVenta(totalDirecto, parseNumber(montoPagado), formaPago)
 
-        let nuevaVentaId = ventaId
-
-        if (ventaId) {
-          const { error: ventaError } = await supabase
-            .from("ventas")
-            .update({
-              cliente_id: Number(clienteId),
-              fecha,
-              total: totalDirecto,
-              estado: estadoVenta
-            })
-            .eq("id", ventaId)
-
-          if (ventaError) throw ventaError
-        } else {
-          const { data: ventaCreada, error: ventaError } = await supabase
-            .from("ventas")
-            .insert([
+        const pagosPayload = parseNumber(montoPagado || 0) > 0
+          ? [
               {
                 cliente_id: Number(clienteId),
+                monto: parseNumber(montoPagado),
                 fecha,
-                total: totalDirecto,
-                estado: estadoVenta,
-                tipo_venta: tipoVenta,
-                observaciones: observaciones || null,
+                metodo: formaPago === "contado" ? "Efectivo" : "Fiado",
                 usuario_id: user?.id || null
               }
-            ])
-            .select("id")
-            .single()
+            ]
+          : []
 
-          if (ventaError) throw ventaError
-          nuevaVentaId = ventaCreada.id
-        }
-
-        if (ventaId) {
-          await supabase.from("detalle_venta").delete().eq("venta_id", ventaId)
-          await supabase.from("pagos").delete().eq("venta_id", ventaId)
-          await supabase.from("ventas_libriado").delete().eq("venta_id", ventaId)
-        }
-        const { error: detalleError } = await supabase.from("detalle_venta").insert([
-          {
-            venta_id: nuevaVentaId,
-            cerdo_id: Number(cerdoId),
-            cantidad: parseNumber(pesoVenta),
-            precio_unitario: parseNumber(precioKilo),
-            subtotal: totalDirecto
-          }
-        ])
-        if (detalleError) throw detalleError
-
-        if (parseNumber(montoPagado || 0) > 0) {
-          const { error: pagoError } = await supabase.from("pagos").insert([
+        const nuevaVentaId = await saveVentaAtomica({
+          ventaPayload: {
+            cliente_id: Number(clienteId),
+            fecha,
+            total: totalDirecto,
+            estado: estadoVenta,
+            tipo_venta: tipoVenta,
+            observaciones: observaciones || null,
+            usuario_id: user?.id || null
+          },
+          detallePayload: [
             {
-              venta_id: nuevaVentaId,
-              monto: parseNumber(montoPagado),
-              fecha,
-              metodo: formaPago === "contado" ? "Efectivo" : "Fiado",
-              usuario_id: user?.id || null
+              cerdo_id: Number(cerdoId),
+              cantidad: parseNumber(pesoVenta),
+              precio_unitario: parseNumber(precioKilo),
+              subtotal: totalDirecto
             }
-          ])
-          if (pagoError) throw pagoError
-        }
+          ],
+          pagosPayload,
+          libriadoPayload: []
+        })
 
         const nuevoEstadoCerdo = tipoVenta === "pie" ? "vendido_pie" : "vendido_canal"
         const { error: cerdoError } = await supabase
@@ -378,48 +361,7 @@ export default function NuevaVenta() {
 
         const estadoVenta = calcularEstadoVenta(totalLibriado, pagados, pagados > 0 ? "contado" : "fiado")
 
-        let nuevaVentaId = ventaId
-
-        if (ventaId) {
-          const { error: ventaError } = await supabase
-            .from("ventas")
-            .update({
-              cliente_id: Number(filasLibriado[0].cliente_id),
-              fecha,
-              total: totalLibriado,
-              estado: estadoVenta
-            })
-            .eq("id", ventaId)
-
-          if (ventaError) throw ventaError
-        } else {
-          const { data: ventaCreada, error: ventaError } = await supabase
-            .from("ventas")
-            .insert([
-              {
-                cliente_id: Number(filasLibriado[0].cliente_id),
-                fecha,
-                total: totalLibriado,
-                estado: estadoVenta,
-                tipo_venta: tipoVenta,
-                observaciones: observaciones || null,
-                usuario_id: user?.id || null
-              }
-            ])
-            .select("id")
-            .single()
-
-          if (ventaError) throw ventaError
-          nuevaVentaId = ventaCreada.id
-        }
-
-        if (ventaId) {
-          await supabase.from("detalle_venta").delete().eq("venta_id", ventaId)
-          await supabase.from("pagos").delete().eq("venta_id", ventaId)
-          await supabase.from("ventas_libriado").delete().eq("venta_id", ventaId)
-        }
         const payloadLibriado = filasLibriado.map((fila) => ({
-          venta_id: nuevaVentaId,
           cliente_id: fila.cliente_id,
           kilos: parseNumber(fila.kilos || 0),
           precio_kilo: parseNumber(fila.precio_kilo || 0),
@@ -428,34 +370,37 @@ export default function NuevaVenta() {
           estado: fila.estado
         }))
 
-        const { error: libriadoError } = await supabase.from("ventas_libriado").insert(payloadLibriado)
-        if (libriadoError) throw libriadoError
-
         const pagosPayload = filasLibriado
           .filter((fila) => fila.estado === "pagado")
           .map((fila) => ({
-            venta_id: nuevaVentaId,
+            cliente_id: Number(fila.cliente_id),
             monto: Number(fila.subtotal || 0),
             fecha,
             metodo: "Efectivo",
             usuario_id: user?.id || null
           }))
 
-        if (pagosPayload.length) {
-          const { error: pagoError } = await supabase.from("pagos").insert(pagosPayload)
-          if (pagoError) throw pagoError
-        }
-
-        const { error: detalleError } = await supabase.from("detalle_venta").insert([
-          {
-            venta_id: nuevaVentaId,
-            cerdo_id: Number(cerdoId),
-            cantidad: kilosVendidosLibriado,
-            precio_unitario: totalLibriado / Math.max(1, kilosVendidosLibriado),
-            subtotal: totalLibriado
-          }
-        ])
-        if (detalleError) throw detalleError
+        const nuevaVentaId = await saveVentaAtomica({
+          ventaPayload: {
+            cliente_id: Number(filasLibriado[0].cliente_id),
+            fecha,
+            total: totalLibriado,
+            estado: estadoVenta,
+            tipo_venta: tipoVenta,
+            observaciones: observaciones || null,
+            usuario_id: user?.id || null
+          },
+          detallePayload: [
+            {
+              cerdo_id: Number(cerdoId),
+              cantidad: kilosVendidosLibriado,
+              precio_unitario: totalLibriado / Math.max(1, kilosVendidosLibriado),
+              subtotal: totalLibriado
+            }
+          ],
+          pagosPayload,
+          libriadoPayload: payloadLibriado
+        })
 
         const { error: cerdoError } = await supabase
           .from("cerdos")

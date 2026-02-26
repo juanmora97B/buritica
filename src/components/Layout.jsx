@@ -23,7 +23,7 @@ const navClass = ({ isActive }) =>
 function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { userProfile } = useCurrentUser();
+  const { user, userProfile, loading } = useCurrentUser();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   const handleLogout = async () => {
@@ -38,6 +38,14 @@ function Layout() {
   useEffect(() => {
     setMenuAbierto(false);
   }, [location.pathname]);
+
+  if (loading && user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <p className="text-gray-600">Cargando perfil de usuario...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">

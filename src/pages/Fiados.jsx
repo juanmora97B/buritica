@@ -119,6 +119,32 @@ export default function Fiados() {
       }
     })
 
+    // Precargar abonos de clientes fiados en una sola consulta para evitar N+1.
+    const libriadoRows = (ventasLibriadoConFiados || [])
+      .flatMap((v) => v.ventas_libriado || [])
+      .filter((lib) => lib.estado === "fiado")
+
+    const libriadoIds = libriadoRows.map((lib) => lib.id).filter(Boolean)
+    let pagosLibriadoMap = {}
+    if (libriadoIds.length > 0) {
+      const { data: pagosLibriado } = await supabase
+        .from("pagos")
+        .select("id, monto, fecha, metodo, ventas_libriado_id")
+        .in("ventas_libriado_id", libriadoIds)
+        .order("fecha", { ascending: true })
+
+      ;(pagosLibriado || []).forEach((pago) => {
+        const key = pago.ventas_libriado_id
+        if (!pagosLibriadoMap[key]) pagosLibriadoMap[key] = []
+        pagosLibriadoMap[key].push({
+          id: pago.id,
+          monto: pago.monto,
+          fecha: pago.fecha,
+          metodo: pago.metodo
+        })
+      })
+    }
+
     // Agrupar ventas libriado
     const ventasLibriadoArr = []
     
@@ -127,18 +153,12 @@ export default function Fiados() {
       const cerdo = detalle?.cerdos
       const gastos = gastosMap[detalle?.cerdo_id] || 0
 
-      const clientes = (venta.ventas_libriado || [])
+      const clientesResueltos = (venta.ventas_libriado || [])
         .filter((lib) => lib.estado === "fiado")
-        .map(async (lib) => {
-          // Obtener SOLO los abonos de ESTE cliente específico
-          const { data: abonos } = await supabase
-            .from("pagos")
-            .select("id, monto, fecha, metodo")
-            .eq("ventas_libriado_id", lib.id)
-            .order("fecha", { ascending: true })
-          
+        .map((lib) => {
+          const abonos = pagosLibriadoMap[lib.id] || []
           const subtotal = Number(lib.subtotal || 0)
-          const totalPagado = sumarPagos(abonos || [])
+          const totalPagado = sumarPagos(abonos)
           const deuda = Math.max(0, subtotal - totalPagado)
 
           return {
@@ -147,16 +167,13 @@ export default function Fiados() {
             subtotal: subtotal,
             kilos: lib.kilos,
             precioKilo: lib.precio_kilo,
-            abonos: abonos || [], // Abonos solo de este cliente
+            abonos: abonos,
             totalPagado: totalPagado,
             deuda: deuda,
             libriado_id: lib.id,
             esLibriado: true
           }
         })
-
-      // Esperar a que se resuelvan todos los clientes
-      const clientesResueltos = await Promise.all(clientes)
 
       ventasLibriadoArr.push({
         ventaId: venta.id,
@@ -183,6 +200,7 @@ export default function Fiados() {
     // Preparar datos del pago
     const pagoPrepare = {
       venta_id: ventaId,
+      cliente_id: clienteData.clienteId,
       monto: parseNumber(abono.monto),
       fecha: new Date().toISOString().split("T")[0],
       metodo: abono.metodo || "Efectivo",
@@ -245,6 +263,7 @@ export default function Fiados() {
       const { error } = await supabase.from("pagos").insert([
         {
           venta_id: ventaId,
+          cliente_id: clienteData.clienteId,
           ventas_libriado_id: clienteData.libriado_id,
           monto: Number(clienteData.deuda),
           fecha: new Date().toISOString().split("T")[0],
@@ -264,6 +283,7 @@ export default function Fiados() {
         await supabase.from("pagos").insert([
           {
             venta_id: ventaId,
+            cliente_id: clienteData.clienteId,
             monto: deuda,
             fecha: new Date().toISOString().split("T")[0],
             metodo: "Efectivo",
