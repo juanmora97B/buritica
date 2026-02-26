@@ -11,11 +11,15 @@ const tipos = ["Alimento", "Medicamentos", "Transporte", "Servicios", "Otros"]
 export default function Gastos() {
   const { user, userProfile } = useCurrentUser()
   const canEdit = canEditByRole(userProfile?.rol)
+
   const [gastos, setGastos] = useState([])
   const [descripcion, setDescripcion] = useState("")
   const [monto, setMonto] = useState("")
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0])
   const [tipo, setTipo] = useState("Alimento")
+  const [cantidadBultos, setCantidadBultos] = useState("")
+  const [valorUnitario, setValorUnitario] = useState("")
+
   const [mesFiltro, setMesFiltro] = useState("")
   const [tipoFiltro, setTipoFiltro] = useState("todos")
   const [cerdoFiltro, setCerdoFiltro] = useState("todos")
@@ -30,11 +34,24 @@ export default function Gastos() {
   const [editFecha, setEditFecha] = useState("")
   const [editTipo, setEditTipo] = useState("Alimento")
 
+  const esAlimento = tipo === "Alimento"
+  const cantidadBultosNum = parseNumber(cantidadBultos)
+  const valorUnitarioNum = parseNumber(valorUnitario)
+  const montoCalculadoAlimento = cantidadBultosNum * valorUnitarioNum
+  const montoFinal = esAlimento ? montoCalculadoAlimento : parseNumber(monto)
+
+  useEffect(() => {
+    if (esAlimento) {
+      setMonto(formatNumber(montoCalculadoAlimento))
+    }
+  }, [esAlimento, montoCalculadoAlimento])
+
   async function fetchCerdos() {
     const { data } = await supabase
       .from("cerdos")
       .select("id, codigo, peso, observaciones")
       .order("id")
+
     setCerdos(data || [])
   }
 
@@ -75,23 +92,42 @@ export default function Gastos() {
   }, [])
 
   const agregarGasto = async () => {
-    if (!canEdit) return toast.error("No tienes permisos para editar información")
-    if (!descripcion || !monto) return toast.error("Ingrese descripcion y monto")
-    if (parseNumber(monto) <= 0) return toast.error("El monto debe ser mayor a 0")
+    if (!canEdit) return toast.error("No tienes permisos para editar informacion")
+    if (!descripcion) return toast.error("Ingrese descripcion")
+
+    if (esAlimento && (cantidadBultosNum <= 0 || valorUnitarioNum <= 0)) {
+      return toast.error("Ingrese cantidad de bultos y valor unitario validos")
+    }
+
+    if (!esAlimento && !monto) {
+      return toast.error("Ingrese monto")
+    }
+
+    if (montoFinal <= 0) {
+      return toast.error("El monto debe ser mayor a 0")
+    }
 
     if (distribuir && cerdosSeleccionados.length === 0) {
       return toast.error("Seleccione al menos un cerdo para distribuir el gasto")
     }
 
-    // Si se distribuye entre varios cerdos
+    const detallesAlimento = esAlimento
+      ? JSON.stringify({
+          cantidad_bultos: cantidadBultosNum,
+          valor_unitario: valorUnitarioNum,
+          total: montoFinal
+        })
+      : null
+
     if (distribuir && cerdosSeleccionados.length > 0) {
-      const montoPorCerdo = parseNumber(monto) / cerdosSeleccionados.length
+      const montoPorCerdo = montoFinal / cerdosSeleccionados.length
 
       const gastosArray = cerdosSeleccionados.map((cerdoId) => ({
         descripcion: `${descripcion} (distribuido entre ${cerdosSeleccionados.length} cerdos)`,
         monto: Math.round(montoPorCerdo),
         fecha,
         tipo,
+        detalles: detallesAlimento,
         cerdo_id: cerdoId,
         usuario_id: user?.id || null
       }))
@@ -104,17 +140,24 @@ export default function Gastos() {
         modulo: "gastos",
         accion: "create_distribuido",
         entidad: "gastos",
-        descripcion: `Creó gasto distribuido en ${cerdosSeleccionados.length} cerdos`,
-        metadata: { descripcion, monto: parseNumber(monto), tipo, cerdosSeleccionados }
+        descripcion: `Creo gasto distribuido en ${cerdosSeleccionados.length} cerdos`,
+        metadata: {
+          descripcion,
+          monto: montoFinal,
+          tipo,
+          cantidadBultos: esAlimento ? cantidadBultosNum : null,
+          valorUnitario: esAlimento ? valorUnitarioNum : null,
+          cerdosSeleccionados
+        }
       })
     } else {
-      // Gasto normal sin distribución
       const { error } = await supabase.from("gastos").insert([
         {
           descripcion,
-          monto: parseNumber(monto),
+          monto: montoFinal,
           fecha,
           tipo,
+          detalles: detallesAlimento,
           usuario_id: user?.id || null
         }
       ])
@@ -125,20 +168,29 @@ export default function Gastos() {
         modulo: "gastos",
         accion: "create",
         entidad: "gastos",
-        descripcion: "Creó gasto",
-        metadata: { descripcion, monto: parseNumber(monto), tipo, fecha }
+        descripcion: "Creo gasto",
+        metadata: {
+          descripcion,
+          monto: montoFinal,
+          tipo,
+          fecha,
+          cantidadBultos: esAlimento ? cantidadBultosNum : null,
+          valorUnitario: esAlimento ? valorUnitarioNum : null
+        }
       })
     }
 
     setDescripcion("")
     setMonto("")
+    setCantidadBultos("")
+    setValorUnitario("")
     setDistribuir(false)
     setCerdosSeleccionados([])
     fetchGastos()
   }
 
   const iniciarEdicion = (gasto) => {
-    if (!canEdit) return toast.error("No tienes permisos para editar información")
+    if (!canEdit) return toast.error("No tienes permisos para editar informacion")
     setEditId(gasto.id)
     setEditDescripcion(gasto.descripcion || "")
     setEditMonto(formatNumber(gasto.monto || ""))
@@ -155,7 +207,7 @@ export default function Gastos() {
   }
 
   const guardarEdicion = async (id) => {
-    if (!canEdit) return toast.error("No tienes permisos para editar información")
+    if (!canEdit) return toast.error("No tienes permisos para editar informacion")
     if (parseNumber(editMonto) <= 0) return toast.error("El monto debe ser mayor a 0")
 
     const { error } = await supabase
@@ -176,7 +228,7 @@ export default function Gastos() {
       accion: "update",
       entidad: "gastos",
       entidadId: String(id),
-      descripcion: "Actualizó gasto",
+      descripcion: "Actualizo gasto",
       metadata: {
         descripcion: editDescripcion,
         monto: parseNumber(editMonto),
@@ -190,8 +242,8 @@ export default function Gastos() {
   }
 
   const eliminarGasto = async (id) => {
-    if (!canEdit) return toast.error("No tienes permisos para editar información")
-    const confirmar = window.confirm("¿Eliminar gasto?")
+    if (!canEdit) return toast.error("No tienes permisos para editar informacion")
+    const confirmar = window.confirm("Eliminar gasto?")
     if (!confirmar) return
 
     const { error } = await supabase.from("gastos").delete().eq("id", id)
@@ -203,7 +255,7 @@ export default function Gastos() {
       accion: "delete",
       entidad: "gastos",
       entidadId: String(id),
-      descripcion: "Eliminó gasto"
+      descripcion: "Elimino gasto"
     })
 
     setGastos(gastos.filter((g) => g.id !== id))
@@ -221,29 +273,68 @@ export default function Gastos() {
             onChange={(e) => setDescripcion(e.target.value)}
             className="border p-2 rounded"
           />
-          <input
-            type="text"
-            placeholder="Monto"
-            value={monto}
-            onChange={(e) => setMonto(formatNumber(e.target.value))}
-            className="border p-2 rounded"
-          />
+
           <input
             type="date"
             value={fecha}
             onChange={(e) => setFecha(e.target.value)}
             className="border p-2 rounded"
           />
+
           <select
             value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
+            onChange={(e) => {
+              const nextTipo = e.target.value
+              setTipo(nextTipo)
+              if (nextTipo !== "Alimento") {
+                setCantidadBultos("")
+                setValorUnitario("")
+                setMonto("")
+              }
+            }}
             className="border p-2 rounded"
           >
             {tipos.map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>
+
+          {!esAlimento && (
+            <input
+              type="text"
+              placeholder="Monto"
+              value={monto}
+              onChange={(e) => setMonto(formatNumber(e.target.value))}
+              className="border p-2 rounded"
+            />
+          )}
         </div>
+
+        {esAlimento && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+            <input
+              type="text"
+              placeholder="Cantidad de bultos"
+              value={cantidadBultos}
+              onChange={(e) => setCantidadBultos(formatNumber(e.target.value))}
+              className="border p-2 rounded"
+            />
+            <input
+              type="text"
+              placeholder="Valor unitario"
+              value={valorUnitario}
+              onChange={(e) => setValorUnitario(formatNumber(e.target.value))}
+              className="border p-2 rounded"
+            />
+            <input
+              type="text"
+              placeholder="Total"
+              value={formatNumber(montoCalculadoAlimento)}
+              readOnly
+              className="border p-2 rounded bg-gray-100 text-gray-700"
+            />
+          </div>
+        )}
 
         <div className="mt-3">
           <label className="flex items-center gap-2">
@@ -263,7 +354,7 @@ export default function Gastos() {
         {distribuir && (
           <div className="mt-3 p-3 bg-blue-50 rounded">
             <p className="text-sm font-medium mb-2">
-              Selecciona los cerdos (el monto se dividirá equitativamente):
+              Selecciona los cerdos (el monto se dividira equitativamente):
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 max-h-40 overflow-y-auto">
               {cerdos.map((cerdo) => (
@@ -286,9 +377,9 @@ export default function Gastos() {
                 </label>
               ))}
             </div>
-            {cerdosSeleccionados.length > 0 && monto && (
+            {cerdosSeleccionados.length > 0 && montoFinal > 0 && (
               <p className="mt-2 text-sm font-bold text-blue-600">
-                Monto por cerdo: ${(Number(monto) / cerdosSeleccionados.length).toFixed(2)}
+                Monto por cerdo: ${(montoFinal / cerdosSeleccionados.length).toFixed(2)}
               </p>
             )}
           </div>
@@ -356,117 +447,117 @@ export default function Gastos() {
 
       <div className="bg-white shadow rounded p-4">
         <div className="overflow-x-auto">
-        <table className="w-full min-w-[860px] text-left">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Descripcion</th>
-              <th>Categoria</th>
-              <th>Cerdo</th>
-              <th>Monto</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            {gastos.map((g) => (
-              <tr key={g.id} className="border-t">
-                <td>
-                  {editId === g.id ? (
-                    <input
-                      type="date"
-                      value={editFecha}
-                      onChange={(e) => setEditFecha(e.target.value)}
-                      className="border p-1 rounded"
-                    />
-                  ) : (
-                    g.fecha
-                  )}
-                </td>
-                <td>
-                  {editId === g.id ? (
-                    <input
-                      value={editDescripcion}
-                      onChange={(e) => setEditDescripcion(e.target.value)}
-                      className="border p-1 rounded"
-                    />
-                  ) : (
-                    g.descripcion
-                  )}
-                </td>
-                <td>
-                  {editId === g.id ? (
-                    <select
-                      value={editTipo}
-                      onChange={(e) => setEditTipo(e.target.value)}
-                      className="border p-1 rounded"
-                    >
-                      {tipos.map((t) => (
-                        <option key={t}>{t}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    g.tipo
-                  )}
-                </td>
-                <td>
-                  {g.cerdos ? (
-                    <span className="text-sm bg-green-100 px-2 py-1 rounded">
-                      Cerdo #{g.cerdos.id} {g.cerdos.codigo ? `(${g.cerdos.codigo})` : ""}
-                      {g.cerdos.observaciones ? ` - ${g.cerdos.observaciones}` : ""}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 text-sm">General</span>
-                  )}
-                </td>
-                <td>
-                  {editId === g.id ? (
-                    <input
-                      type="text"
-                      value={editMonto}
-                      onChange={(e) => setEditMonto(formatNumber(e.target.value))}
-                      className="border p-1 rounded"
-                    />
-                  ) : (
-                    `$${Number(g.monto).toLocaleString('es-CO')}`
-                  )}
-                </td>
-                <td>
-                  {editId === g.id ? (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => guardarEdicion(g.id)}
-                        className="bg-blue-600 text-white px-2 py-1 rounded"
-                      >
-                        Guardar
-                      </button>
-                      <button
-                        onClick={cancelarEdicion}
-                        className="bg-gray-300 px-2 py-1 rounded"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => iniciarEdicion(g)}
-                        className="bg-blue-600 text-white px-2 py-1 rounded"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => eliminarGasto(g.id)}
-                        className="bg-red-600 text-white px-2 py-1 rounded"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  )}
-                </td>
+          <table className="w-full min-w-[860px] text-left">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Descripcion</th>
+                <th>Categoria</th>
+                <th>Cerdo</th>
+                <th>Monto</th>
+                <th>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {gastos.map((g) => (
+                <tr key={g.id} className="border-t">
+                  <td>
+                    {editId === g.id ? (
+                      <input
+                        type="date"
+                        value={editFecha}
+                        onChange={(e) => setEditFecha(e.target.value)}
+                        className="border p-1 rounded"
+                      />
+                    ) : (
+                      g.fecha
+                    )}
+                  </td>
+                  <td>
+                    {editId === g.id ? (
+                      <input
+                        value={editDescripcion}
+                        onChange={(e) => setEditDescripcion(e.target.value)}
+                        className="border p-1 rounded"
+                      />
+                    ) : (
+                      g.descripcion
+                    )}
+                  </td>
+                  <td>
+                    {editId === g.id ? (
+                      <select
+                        value={editTipo}
+                        onChange={(e) => setEditTipo(e.target.value)}
+                        className="border p-1 rounded"
+                      >
+                        {tipos.map((t) => (
+                          <option key={t}>{t}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      g.tipo
+                    )}
+                  </td>
+                  <td>
+                    {g.cerdos ? (
+                      <span className="text-sm bg-green-100 px-2 py-1 rounded">
+                        Cerdo #{g.cerdos.id} {g.cerdos.codigo ? `(${g.cerdos.codigo})` : ""}
+                        {g.cerdos.observaciones ? ` - ${g.cerdos.observaciones}` : ""}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-sm">General</span>
+                    )}
+                  </td>
+                  <td>
+                    {editId === g.id ? (
+                      <input
+                        type="text"
+                        value={editMonto}
+                        onChange={(e) => setEditMonto(formatNumber(e.target.value))}
+                        className="border p-1 rounded"
+                      />
+                    ) : (
+                      `$${Number(g.monto).toLocaleString("es-CO")}`
+                    )}
+                  </td>
+                  <td>
+                    {editId === g.id ? (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => guardarEdicion(g.id)}
+                          className="bg-blue-600 text-white px-2 py-1 rounded"
+                        >
+                          Guardar
+                        </button>
+                        <button
+                          onClick={cancelarEdicion}
+                          className="bg-gray-300 px-2 py-1 rounded"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => iniciarEdicion(g)}
+                          className="bg-blue-600 text-white px-2 py-1 rounded"
+                        >
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => eliminarGasto(g.id)}
+                          className="bg-red-600 text-white px-2 py-1 rounded"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
