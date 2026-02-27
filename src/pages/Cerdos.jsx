@@ -35,6 +35,8 @@ export default function Cerdos() {
   const [codigo, setCodigo] = useState("")
   const [costoCompra, setCostoCompra] = useState("")
   const [observaciones, setObservaciones] = useState("")
+  const [fotoFile, setFotoFile] = useState(null)
+  const [fotoPreview, setFotoPreview] = useState("")
 
   const [editId, setEditId] = useState(null)
   const [editPeso, setEditPeso] = useState("")
@@ -114,28 +116,80 @@ export default function Cerdos() {
     }
   }, [cerdosVivos, cerdosVendidos, cerdosMuertos])
 
+  const limpiarFotoForm = () => {
+    setFotoFile(null)
+    setFotoPreview("")
+  }
+
+  const manejarCambioFoto = (event) => {
+    const archivo = event.target.files?.[0] || null
+    if (!archivo) {
+      limpiarFotoForm()
+      return
+    }
+
+    if (!archivo.type.startsWith("image/")) {
+      toast.error("Selecciona una imagen valida")
+      event.target.value = ""
+      limpiarFotoForm()
+      return
+    }
+
+    if (archivo.size > 5 * 1024 * 1024) {
+      toast.error("La imagen debe ser menor a 5 MB")
+      event.target.value = ""
+      limpiarFotoForm()
+      return
+    }
+
+    setFotoFile(archivo)
+    setFotoPreview(URL.createObjectURL(archivo))
+  }
+
   const agregarCerdo = async () => {
     if (!canEdit) return toast.error("No tienes permisos para editar información")
     if (!peso) return toast.error("Ingrese peso")
     if (parseNumber(peso) <= 0) return toast.error("El peso debe ser mayor a 0")
 
-    const { error } = await supabase.from("cerdos").insert([
+    const { data: cerdoCreado, error } = await supabase.from("cerdos").insert([
       {
         peso: parseNumber(peso),
         estado: "vivo",
         fecha_ingreso: fechaIngreso,
         codigo: codigo || null,
         costo_compra: parseNumber(costoCompra) || null,
-        observaciones: observaciones || null
+        observaciones: observaciones || null,
+        foto_url: null
       }
-    ])
+    ]).select("id").single()
 
     if (error) return toast.error(error.message)
+
+    if (fotoFile && cerdoCreado?.id) {
+      const extension = fotoFile.name.split(".").pop()?.toLowerCase() || "jpg"
+      const nombreArchivo = `${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
+      const ruta = `cerdos/${cerdoCreado.id}/${nombreArchivo}`
+
+      const { error: uploadError } = await supabase.storage
+        .from("cerdos-fotos")
+        .upload(ruta, fotoFile, { upsert: false })
+
+      if (uploadError) {
+        toast.error("Cerdo creado, pero no se pudo subir la foto")
+      } else {
+        const { data: publicUrlData } = supabase.storage.from("cerdos-fotos").getPublicUrl(ruta)
+        const fotoUrl = publicUrlData?.publicUrl || null
+        if (fotoUrl) {
+          await supabase.from("cerdos").update({ foto_url: fotoUrl }).eq("id", cerdoCreado.id)
+        }
+      }
+    }
 
     setPeso("")
     setCodigo("")
     setCostoCompra("")
     setObservaciones("")
+    limpiarFotoForm()
     fetchData()
   }
 
@@ -323,6 +377,21 @@ export default function Cerdos() {
             className="border p-2 rounded"
           />
         </div>
+        <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <input
+            type="file"
+            accept="image/*"
+            onChange={manejarCambioFoto}
+            className="border p-2 rounded bg-white"
+          />
+          {fotoPreview && (
+            <img
+              src={fotoPreview}
+              alt="Vista previa"
+              className="h-20 w-20 object-cover rounded border"
+            />
+          )}
+        </div>
         <button
           onClick={agregarCerdo}
           className="bg-green-600 text-white px-4 py-2 rounded mt-3"
@@ -354,6 +423,7 @@ export default function Cerdos() {
             <thead>
               <tr>
                 <th>ID</th>
+                <th>Foto</th>
                 <th>Código</th>
                 <th>Peso</th>
                 <th>Fecha ingreso</th>
@@ -366,6 +436,17 @@ export default function Cerdos() {
               {cerdosVivos.map((cerdo) => (
                 <tr key={cerdo.id} className="border-t">
                   <td>{cerdo.id}</td>
+                  <td>
+                    {cerdo.foto_url ? (
+                      <img
+                        src={cerdo.foto_url}
+                        alt={`Cerdo ${cerdo.id}`}
+                        className="h-12 w-12 object-cover rounded border"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">Sin foto</span>
+                    )}
+                  </td>
                   <td>{cerdo.codigo || "-"}</td>
                   <td>
                     {editId === cerdo.id ? (
@@ -446,6 +527,7 @@ export default function Cerdos() {
             <thead>
               <tr>
                 <th>ID</th>
+                <th>Foto</th>
                 <th>Código</th>
                 <th>Peso</th>
                 <th>Fecha ingreso</th>
@@ -459,6 +541,17 @@ export default function Cerdos() {
               {cerdosMuertos.map((cerdo) => (
                 <tr key={cerdo.id} className="border-t">
                   <td>{cerdo.id}</td>
+                  <td>
+                    {cerdo.foto_url ? (
+                      <img
+                        src={cerdo.foto_url}
+                        alt={`Cerdo ${cerdo.id}`}
+                        className="h-12 w-12 object-cover rounded border"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">Sin foto</span>
+                    )}
+                  </td>
                   <td>{cerdo.codigo || "-"}</td>
                   <td>{cerdo.peso} lb</td>
                   <td>{cerdo.fecha_ingreso || "-"}</td>
@@ -486,6 +579,7 @@ export default function Cerdos() {
             <thead>
               <tr>
                 <th>ID</th>
+                <th>Foto</th>
                 <th>Código</th>
                 <th>Tipo venta</th>
                 <th>Fecha venta</th>
@@ -508,6 +602,17 @@ export default function Cerdos() {
                 return (
                   <tr key={cerdo.id} className="border-t">
                     <td>{cerdo.id}</td>
+                  <td>
+                    {cerdo.foto_url ? (
+                      <img
+                        src={cerdo.foto_url}
+                        alt={`Cerdo ${cerdo.id}`}
+                        className="h-12 w-12 object-cover rounded border"
+                      />
+                    ) : (
+                      <span className="text-xs text-gray-400">Sin foto</span>
+                    )}
+                  </td>
                     <td>{cerdo.codigo || "-"}</td>
                     <td>{nombreTipoVenta(cerdo.estado)}</td>
                     <td>{ventaInfo?.fechaVenta || "-"}</td>
@@ -686,3 +791,5 @@ export default function Cerdos() {
     </div>
   )
 }
+
+

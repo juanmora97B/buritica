@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import toast from "react-hot-toast"
 import { supabase } from "../lib/supabase"
 import { useCurrentUser } from "../hooks/useCurrentUser"
@@ -20,7 +20,8 @@ export default function Gastos() {
   const [cantidadBultos, setCantidadBultos] = useState("")
   const [valorUnitario, setValorUnitario] = useState("")
 
-  const [mesFiltro, setMesFiltro] = useState("")
+  const [fechaDesde, setFechaDesde] = useState("")
+  const [fechaHasta, setFechaHasta] = useState("")
   const [tipoFiltro, setTipoFiltro] = useState("todos")
   const [cerdoFiltro, setCerdoFiltro] = useState("todos")
 
@@ -61,12 +62,12 @@ export default function Gastos() {
       .select("*, cerdos(id, codigo, observaciones)")
       .order("fecha", { ascending: false })
 
-    if (mesFiltro) {
-      const [year, month] = mesFiltro.split("-")
-      const start = `${year}-${month}-01`
-      const endDate = new Date(Number(year), Number(month), 0)
-      const end = endDate.toISOString().split("T")[0]
-      query = query.gte("fecha", start).lte("fecha", end)
+    if (fechaDesde) {
+      query = query.gte("fecha", fechaDesde)
+    }
+
+    if (fechaHasta) {
+      query = query.lte("fecha", fechaHasta)
     }
 
     if (tipoFiltro !== "todos") {
@@ -85,7 +86,7 @@ export default function Gastos() {
 
   useEffect(() => {
     fetchGastos()
-  }, [mesFiltro, tipoFiltro, cerdoFiltro])
+  }, [fechaDesde, fechaHasta, tipoFiltro, cerdoFiltro])
 
   useEffect(() => {
     fetchCerdos()
@@ -261,6 +262,27 @@ export default function Gastos() {
     setGastos(gastos.filter((g) => g.id !== id))
   }
 
+  const hayFiltrosActivos =
+    Boolean(fechaDesde) ||
+    Boolean(fechaHasta) ||
+    tipoFiltro !== "todos" ||
+    cerdoFiltro !== "todos"
+
+  const totalRegistros = gastos.length
+  const totalMonto = useMemo(
+    () => gastos.reduce((acc, item) => acc + Number(item.monto || 0), 0),
+    [gastos]
+  )
+
+  const resumenPorTipo = useMemo(() => {
+    return tipos.map((nombreTipo) => {
+      const items = gastos.filter((g) => g.tipo === nombreTipo)
+      const cantidad = items.length
+      const total = items.reduce((acc, g) => acc + Number(g.monto || 0), 0)
+      return { tipo: nombreTipo, cantidad, total }
+    })
+  }, [gastos])
+
   return (
     <div className="p-4 md:p-6">
       <h1 className="text-2xl font-bold mb-4">Gastos</h1>
@@ -395,11 +417,19 @@ export default function Gastos() {
 
       <div className="bg-white shadow rounded p-4 mb-4">
         <div className="flex flex-wrap items-center gap-3">
-          <label className="text-sm text-gray-600">Mes</label>
+          <label className="text-sm text-gray-600">Desde</label>
           <input
-            type="month"
-            value={mesFiltro}
-            onChange={(e) => setMesFiltro(e.target.value)}
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className="border p-2 rounded"
+          />
+
+          <label className="text-sm text-gray-600">Hasta</label>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
             className="border p-2 rounded"
           />
 
@@ -430,10 +460,11 @@ export default function Gastos() {
             ))}
           </select>
 
-          {(mesFiltro || tipoFiltro !== "todos" || cerdoFiltro !== "todos") && (
+          {(fechaDesde || fechaHasta || tipoFiltro !== "todos" || cerdoFiltro !== "todos") && (
             <button
               onClick={() => {
-                setMesFiltro("")
+                setFechaDesde("")
+                setFechaHasta("")
                 setTipoFiltro("todos")
                 setCerdoFiltro("todos")
               }}
@@ -442,6 +473,31 @@ export default function Gastos() {
               Limpiar
             </button>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white shadow rounded p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-6 mb-3">
+          <div>
+            <p className="text-sm text-gray-500">
+              {hayFiltrosActivos ? "Total en filtros" : "Total general (sin filtros)"}
+            </p>
+            <p className="text-xl font-bold">${Number(totalMonto).toLocaleString("es-CO")}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500">Cantidad de gastos</p>
+            <p className="text-xl font-bold">{totalRegistros}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          {resumenPorTipo.map((item) => (
+            <div key={item.tipo} className="border rounded p-3 bg-gray-50">
+              <p className="text-sm font-semibold">{item.tipo}</p>
+              <p className="text-xs text-gray-500">Registros: {item.cantidad}</p>
+              <p className="text-sm font-bold">${Number(item.total).toLocaleString("es-CO")}</p>
+            </div>
+          ))}
         </div>
       </div>
 
